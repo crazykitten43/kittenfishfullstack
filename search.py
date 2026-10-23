@@ -11,17 +11,22 @@ PIECE_VALUE = {
     chess.ROOK: 500, chess.QUEEN: 900, chess.KING: 20_000,
 }
 
+
 class SearchTimeout(Exception):
     pass
+
 
 class Searcher:
     def __init__(self):
         self.nodes = 0
         self.deadline = None
         self.stop_requested = False
+        self.completed_iteration = False
 
     def check_time(self):
-        if self.stop_requested:
+        # If stop arrives before depth 1 completes, finish that iteration so
+        # we can return a searched move instead of the arbitrary legal fallback.
+        if self.stop_requested and self.completed_iteration:
             raise SearchTimeout
         if (self.nodes & 1023) == 0 and self.deadline is not None:
             if time.monotonic() >= self.deadline:
@@ -99,6 +104,7 @@ class Searcher:
         start_time = time.monotonic()
         self.nodes = 0
         self.deadline = time.monotonic() + time_limit
+        self.completed_iteration = False
         legal_moves = list(board.legal_moves)
         if not legal_moves:
             return None, self.terminal_score(board, 0)
@@ -118,11 +124,13 @@ class Searcher:
                         iteration_score, iteration_move = score, move
                     alpha = max(alpha, score)
                 best_move, best_score = iteration_move, iteration_score
+                self.completed_iteration = True
                 elapsed = time.monotonic() - start_time
                 print(f"depth={depth} move={best_move.uci()} score={best_score} cp nodes={self.nodes} time={elapsed:.2f}s nps={self.nodes / max(elapsed, 0.001):.0f}", file=sys.stderr)
             except SearchTimeout:
                 break
         return best_move, best_score
+
 
 if __name__ == "__main__":
     board = chess.Board()
