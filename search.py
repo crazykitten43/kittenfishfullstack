@@ -1,5 +1,6 @@
 """Basic alpha-beta negamax search prototype for KittenFish."""
 import time
+import sys
 import chess
 from evaluator import evaluate
 
@@ -17,8 +18,11 @@ class Searcher:
     def __init__(self):
         self.nodes = 0
         self.deadline = None
+        self.stop_requested = False
 
     def check_time(self):
+        if self.stop_requested:
+            raise SearchTimeout
         if (self.nodes & 1023) == 0 and self.deadline is not None:
             if time.monotonic() >= self.deadline:
                 raise SearchTimeout
@@ -115,7 +119,7 @@ class Searcher:
                     alpha = max(alpha, score)
                 best_move, best_score = iteration_move, iteration_score
                 elapsed = time.monotonic() - start_time
-                print(f"depth={depth} move={best_move.uci()} score={best_score} cp nodes={self.nodes} time={elapsed:.2f}s nps={self.nodes / max(elapsed, 0.001):.0f}")
+                print(f"depth={depth} move={best_move.uci()} score={best_score} cp nodes={self.nodes} time={elapsed:.2f}s nps={self.nodes / max(elapsed, 0.001):.0f}", file=sys.stderr)
             except SearchTimeout:
                 break
         return best_move, best_score
