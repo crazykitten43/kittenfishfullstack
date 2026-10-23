@@ -92,6 +92,7 @@ class Searcher:
         return best_score
 
     def search(self, board, max_depth=4, time_limit=5.0):
+        start_time = time.monotonic()
         self.nodes = 0
         self.deadline = time.monotonic() + time_limit
         legal_moves = list(board.legal_moves)
@@ -113,7 +114,8 @@ class Searcher:
                         iteration_score, iteration_move = score, move
                     alpha = max(alpha, score)
                 best_move, best_score = iteration_move, iteration_score
-                print(f"depth={depth} move={best_move.uci()} score={best_score} cp nodes={self.nodes}")
+                elapsed = time.monotonic() - start_time
+                print(f"depth={depth} move={best_move.uci()} score={best_score} cp nodes={self.nodes} time={elapsed:.2f}s nps={self.nodes / max(elapsed, 0.001):.0f}")
             except SearchTimeout:
                 break
         return best_move, best_score
@@ -121,7 +123,7 @@ class Searcher:
 if __name__ == "__main__":
     board = chess.Board()
     engine = Searcher()
-    move, score = engine.search(board, max_depth=5, time_limit=5.0)
+    move, score = engine.search(board, max_depth=5, time_limit=20.0)
     print("Best move:", move)
     print("Score:", score, "cp (side to move)")
     print("Nodes searched:", engine.nodes)
