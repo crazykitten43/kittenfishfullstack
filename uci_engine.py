@@ -126,8 +126,12 @@ class UCIEngine:
         self.best_move = next(iter(board_snapshot.legal_moves), None)
         self.searcher.stop_requested = False
         self.searching = True
+        search_started = threading.Event()
 
         def worker():
+            # Signal immediately before entering search so the command loop
+            # cannot process a stop before the worker has been scheduled.
+            search_started.set()
             try:
                 move, score = self.searcher.search(
                     board_snapshot,
@@ -145,6 +149,7 @@ class UCIEngine:
 
         self.search_thread = threading.Thread(target=worker, daemon=True)
         self.search_thread.start()
+        search_started.wait()
 
     def handle(self, line):
         tokens = shlex.split(line)
