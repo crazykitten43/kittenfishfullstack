@@ -45,12 +45,13 @@ class ChessResNet(nn.Module):
         self.residual_tower = nn.Sequential(
             *[ResidualBlock(channels) for _ in range(blocks)]
         )
-        # Keep the same fully connected head as the baseline CNN for a
-        # reasonably controlled comparison of the convolutional architecture.
+        # Preserve the square-specific information in the flattened board.
+        # LeakyReLU keeps gradients flowing if a hidden unit is negative,
+        # avoiding the dead dense head observed with ordinary ReLU.
         self.head = nn.Sequential(
             nn.Flatten(),
             nn.Linear(channels * 64, 256),
-            nn.ReLU(),
+            nn.LeakyReLU(negative_slope=0.01),
             nn.Linear(256, 1),
         )
 
@@ -66,7 +67,10 @@ def main():
     parser.add_argument("--epochs", type=int, default=50)
     parser.add_argument("--batch-size", type=int, default=256)
     parser.add_argument("--threads", type=int, default=8)
-    parser.add_argument("--lr", type=float, default=0.001)
+    parser.add_argument(
+        "--lr", type=float, default=0.0001,
+        help="AdamW learning rate (default: 0.0001)"
+    )
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--blocks", type=int, default=6)
     parser.add_argument("--channels", type=int, default=64)
