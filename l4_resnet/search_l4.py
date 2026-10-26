@@ -237,7 +237,7 @@ class Searcher:
                 moves.sort(key=lambda m: (
                     2_000_000 if m == tt_move else
                     self.capture_score(board, m) if board.is_capture(m) else
-                    -root_rank.get(m, len(root_rank)
+                    -root_rank.get(m, len(root_rank))
                 ), reverse=True)
                 for move in moves:
                     board.push(move)
