@@ -145,8 +145,8 @@ class Searcher:
         if depth <= 0:
             return self.quiescence(board, alpha, beta, ply)
 
-        original_alpha = alpha
-        key = (board.fen(), board.halfmove_clock)
+        original_alpha, original_beta = alpha, beta
+        key = (" ".join(board.fen().split()[:4]), board.halfmove_clock)
         entry = self.tt.get(key)
         tt_move = entry.best_move if entry else None
         if entry and entry.depth >= depth:
@@ -183,7 +183,7 @@ class Searcher:
         flag = "EXACT"
         if best_score <= original_alpha:
             flag = "UPPER"
-        elif best_score >= beta:
+        elif best_score >= original_beta:
             flag = "LOWER"
         self.tt[key] = TTEntry(depth, best_score, flag, best_move)
         return best_score
@@ -229,7 +229,7 @@ class Searcher:
             try:
                 alpha = -INF
                 iteration_move, iteration_score = None, -INF
-                entry = self.tt.get((board.fen(), board.halfmove_clock))
+                entry = self.tt.get((" ".join(board.fen().split()[:4]), board.halfmove_clock))
                 tt_move = entry.best_move if entry else None
                 moves = self.ordered_moves(board, 0, tt_move)
                 # Keep batched model ordering as the stable tie-breaker.
