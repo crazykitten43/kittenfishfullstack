@@ -31,7 +31,7 @@ cd l4_resnet
 python train_l4.py --data ../data/positions_100k.csv.gz --epochs 50 --batch-size 512 --eval-batch-size 1024 --workers 4 --threads 8
 ```
 
-The default output is `l4_resnet/checkpoints/kittenfish_l4_resnet.pt` when run from the repository root? For predictable paths, set the output explicitly:
+When run from the `l4_resnet` directory, the default output is `checkpoints/kittenfish_l4_resnet.pt`. For predictable paths, set the output explicitly:
 
 ```bash
 python train_l4.py --data ../data/positions_100k.csv.gz --output checkpoints/kittenfish_l4_resnet.pt
