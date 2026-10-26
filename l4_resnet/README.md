@@ -65,6 +65,26 @@ Values are from the side-to-move perspective, in pawns. Multiply by 100 for appr
 
 Benchmark batch sizes 1, 8, 16, 32, 64, 128 and 256 on the actual L4; measure examples/second and peak VRAM before choosing the production batch size. A larger batch is not automatically better for single-request latency.
 
+## Search harness
+
+The first alpha-beta search harness for this value network is `search_l4.py`.
+It uses iterative deepening, negamax alpha-beta, quiescence search, move ordering,
+a transposition table, and the network's side-to-move evaluation convention.
+
+Run from this directory after installing the requirements and placing the trained
+checkpoint at the default path:
+
+```bash
+python search_l4.py --checkpoint checkpoints/kittenfish_l4_resnet.pt --device auto --depth 4 --time 10
+```
+
+Use `--device cuda` to require GPU inference or `--device cpu` to compare CPU
+inference. `--batch-size` controls the maximum batch used to score all root
+children for initial move ordering. The deeper alpha-beta leaf evaluations are
+currently single-position calls, so this is an integration/testing harness, not
+yet a fully batch-saturated GPU search. Search strength should be measured with
+playing tests, not inferred from validation MAE alone.
+
 ## Reproducibility and limitations
 
 - Seed: 42 by default; train/validation split groups by `game_id` to reduce leakage between positions from the same game.
