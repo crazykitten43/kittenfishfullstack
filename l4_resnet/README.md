@@ -1,6 +1,6 @@
 # KittenFish L4 SE-ResNet v1
 
-A first GPU-oriented value network for KittenFish. It is designed for the existing Stockfish-labelled dataset and batched inference on an NVIDIA L4. It is a **value-only** model for alpha-beta/negamax leaf evaluation; it does not yet contain a policy head or MCTS.
+A first GPU-oriented value network for KittenFish. It is designed for the existing Stockfish-labelled dataset and batched inference on an NVIDIA L4. It is a **value-only** model; it does not yet contain a policy head or MCTS.
 
 ## Architecture
 
@@ -55,40 +55,39 @@ import chess
 from inference import BatchedEvaluator
 ev = BatchedEvaluator("checkpoints/kittenfish_l4_resnet.pt", batch_size=256)
 print(ev.evaluate(chess.STARTING_FEN))
-print(ev.evaluate_many([chess.STARTING_FEN, chess.Board("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").fen()]))
+print(ev.evaluate_many([chess.STARTING_FEN, chess.Board().fen()]))
 PY
 ```
 
 Values are from the side-to-move perspective, in pawns. Multiply by 100 for approximate centipawns. This is a learned approximation, not a substitute for tablebases or a tactical search.
 
-## Benchmarking
+## Batch-first beam search
 
-Benchmark batch sizes 1, 8, 16, 32, 64, 128 and 256 on the actual L4; measure examples/second and peak VRAM before choosing the production batch size. A larger batch is not automatically better for single-request latency.
+`beam_search_l4.py` is the experimental batch-oriented search. It is a **heuristic beam search**, not alpha-beta and not MCTS.
 
-## Search harness
+- Default inference batch size: 256.
+- Default beam width: 8 retained positions **per root move**, so each legal root move remains represented.
+- At each ply, candidates from all active root lines are scored in batches. The search retains candidates favoured by the side that just moved, then backs up scores through the retained tree using negamax.
+- If a layer cannot be completed before the time limit, the search returns the best move from the last completed layer.
+- Because pruning can remove branches, scores are heuristic and do not have alpha-beta's minimax guarantees. A move can be missed by the beam.
+- The reported `depth` is the maximum ply reached; some pruned branches can end at shallower depths.
 
-The first alpha-beta search harness for this value network is `search_l4.py`.
-It uses iterative deepening, negamax alpha-beta, quiescence search, move ordering,
-a transposition table, and the network's side-to-move evaluation convention.
-
-Run from this directory after installing the requirements and placing the trained
-checkpoint at the default path:
+Run from this directory with the trained checkpoint in place:
 
 ```bash
-python search_l4.py --checkpoint checkpoints/kittenfish_l4_resnet.pt --device auto --depth 4 --time 10
+python beam_search_l4.py --checkpoint checkpoints/kittenfish_l4_resnet.pt --device cuda --batch-size 256 --beam-width 8 --depth 8 --time 10
 ```
 
-Use `--device cuda` to require GPU inference or `--device cpu` to compare CPU
-inference. `--batch-size` controls the maximum batch used to score all root
-children for initial move ordering. The deeper alpha-beta leaf evaluations are
-currently single-position calls, so this is an integration/testing harness, not
-yet a fully batch-saturated GPU search. Search strength should be measured with
-playing tests, not inferred from validation MAE alone.
+Try a wider beam with `--beam-width 16`, or reduce it if generating candidate positions becomes the bottleneck. Compare multiple fixed positions and actual games against the previous alpha-beta harness (`search_l4.py`); raw node count alone does not establish playing strength.
+
+## Previous alpha-beta harness
+
+`search_l4.py` remains available as the baseline. It uses iterative deepening, negamax alpha-beta, quiescence search, move ordering and a transposition table. Its deeper leaf evaluations are mostly single-position calls, so it does not keep the GPU as busy as the beam prototype.
 
 ## Reproducibility and limitations
 
 - Seed: 42 by default; train/validation split groups by `game_id` to reduce leakage between positions from the same game.
 - Evaluation labels are divided by 100 and clipped to ±20 pawns, matching the existing training pipeline.
 - Input encoding remains 18 planes for compatibility with the current dataset and baseline.
-- The value head has no move-policy output. Search should evaluate legal child positions using this value and convert sign consistently with the existing negamax implementation.
-- Initial defaults are a starting point, not evidence of strength. Compare validation MAE and prediction distribution against the prior CNN/ResNet before integrating into the bot.
+- The value head has no move-policy output. Search evaluates legal child positions using the value and converts sign consistently with the side-to-move convention.
+- Initial defaults are a starting point, not evidence of strength. Compare validation MAE and prediction distribution against the prior CNN/ResNet, then run playing tests.
